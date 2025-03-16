@@ -14,4 +14,5 @@ Bun
 - [x] Create ground and sky box
 - [x] Create Player (as simeple rectangle) with movement keyboard controll (W,A,S, D)
 - [x] Add jump ability to player with spacebar keypress
-- [x] Add sprint ability to player with shift keypress 
+- [x] Add sprint ability to player with shift keypress
+- [x] Add proper camera control (with mouse) which suitable to 3rd person game 

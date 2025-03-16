@@ -67,6 +67,44 @@ let playerVelocityY = 0
 let isJumping = false
 const groundLevel = 0.5 // Player's y position when on ground
 
+// Camera control variables
+let cameraRotationX = 0; // Vertical rotation (looking up/down)
+let cameraRotationY = 0; // Horizontal rotation (looking left/right)
+const cameraDistance = 5; // Distance from player
+const cameraSensitivity = 0.002; // Mouse sensitivity
+const cameraMinPolarAngle = 0.1; // Minimum angle (don't allow looking straight up)
+const cameraMaxPolarAngle = Math.PI / 2; // Maximum angle (don't allow looking below horizon)
+let isMouseDown = false;
+
+// Mouse controls for camera
+window.addEventListener('mousedown', (event) => {
+  if (event.button === 0) { // Left mouse button
+    isMouseDown = true;
+    document.body.style.cursor = 'grabbing';
+  }
+});
+
+window.addEventListener('mouseup', () => {
+  isMouseDown = false;
+  document.body.style.cursor = 'default';
+});
+
+window.addEventListener('mousemove', (event) => {
+  if (isMouseDown) {
+    // Rotate camera based on mouse movement
+    cameraRotationY -= event.movementX * cameraSensitivity;
+    cameraRotationX -= event.movementY * cameraSensitivity;
+    
+    // Clamp vertical rotation to prevent camera flipping
+    cameraRotationX = Math.max(cameraMinPolarAngle, Math.min(cameraMaxPolarAngle, cameraRotationX));
+  }
+});
+
+// Prevent context menu on right click
+window.addEventListener('contextmenu', (event) => {
+  event.preventDefault();
+});
+
 // Keyboard controls
 window.addEventListener('keydown', (event) => {
   keysPressed[event.key.toLowerCase()] = true
@@ -94,37 +132,78 @@ window.addEventListener('keyup', (event) => {
 
 // Handle player movement
 function movePlayer() {
-  // Forward/backward movement (Z axis)
+  // Calculate movement direction relative to camera orientation
+  const moveAngle = cameraRotationY;
+  
+  // Create direction vectors
+  const forward = new THREE.Vector3(
+    Math.sin(moveAngle), 
+    0, 
+    Math.cos(moveAngle)
+  );
+  
+  const right = new THREE.Vector3(
+    Math.sin(moveAngle + Math.PI/2), 
+    0, 
+    Math.cos(moveAngle + Math.PI/2)
+  );
+  
+  // Apply movement based on keys pressed
   if (keysPressed['w']) {
-    player.position.z -= playerSpeed
+    player.position.x -= forward.x * playerSpeed;
+    player.position.z -= forward.z * playerSpeed;
   }
   if (keysPressed['s']) {
-    player.position.z += playerSpeed
+    player.position.x += forward.x * playerSpeed;
+    player.position.z += forward.z * playerSpeed;
   }
-  
-  // Left/right movement (X axis)
   if (keysPressed['a']) {
-    player.position.x -= playerSpeed
+    player.position.x -= right.x * playerSpeed;
+    player.position.z -= right.z * playerSpeed;
   }
   if (keysPressed['d']) {
-    player.position.x += playerSpeed
+    player.position.x += right.x * playerSpeed;
+    player.position.z += right.z * playerSpeed;
+  }
+  
+  // Rotate player to face movement direction
+  if (keysPressed['w'] || keysPressed['s'] || keysPressed['a'] || keysPressed['d']) {
+    player.rotation.y = moveAngle;
   }
   
   // Apply gravity and jumping
-  playerVelocityY -= gravity
-  player.position.y += playerVelocityY
+  playerVelocityY -= gravity;
+  player.position.y += playerVelocityY;
   
   // Check if player is on ground
   if (player.position.y <= groundLevel) {
-    player.position.y = groundLevel
-    playerVelocityY = 0
-    isJumping = false
+    player.position.y = groundLevel;
+    playerVelocityY = 0;
+    isJumping = false;
   }
   
-  // Update camera to follow player
-  camera.position.x = player.position.x
-  camera.position.z = player.position.z + 10
-  camera.lookAt(player.position)
+  // Update camera position based on player position and camera rotation
+  updateCamera();
+}
+
+// Update camera position and orientation
+function updateCamera() {
+  // Calculate camera position based on player position and camera rotation
+  const offsetX = cameraDistance * Math.sin(cameraRotationY) * Math.cos(cameraRotationX);
+  const offsetY = cameraDistance * Math.sin(cameraRotationX);
+  const offsetZ = cameraDistance * Math.cos(cameraRotationY) * Math.cos(cameraRotationX);
+  
+  // Position camera relative to player
+  camera.position.x = player.position.x + offsetX;
+  camera.position.y = player.position.y + offsetY + 1.5; // Add height offset to look slightly above player
+  camera.position.z = player.position.z + offsetZ;
+  
+  // Look at player
+  camera.lookAt(
+    player.position.x,
+    player.position.y + 1, // Look at player's head level
+    player.position.z
+  );
 }
 
 // Handle window resize
